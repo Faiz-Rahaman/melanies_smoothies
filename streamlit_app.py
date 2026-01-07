@@ -39,7 +39,5 @@ if time_to_insert and ingredients_list and name_on_order:
         INSERT INTO smoothies.public.orders (ingredients, name_on_order)
         VALUES ('{ingredients_string}', '{name_on_order}')
     """
-
     session.sql(my_insert_stmt).collect()
-
     st.success(f'Your Smoothie is ordered, {name_on_order}!', icon="✅")
