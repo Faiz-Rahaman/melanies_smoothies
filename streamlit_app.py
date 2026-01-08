@@ -1,4 +1,3 @@
-# Import python packages
 import streamlit as st
 from snowflake.snowpark.functions import col
 import requests
@@ -15,9 +14,14 @@ st.write("The name on your Smoothie will be:", name_on_order)
 cnx = st.connection("snowflake")
 session = cnx.session()
 
-# Get fruit names as a Python list
-fruit_df = session.table("smoothies.public.fruit_options").select(col("FRUIT_NAME"))
-fruit_list = [row["FRUIT_NAME"] for row in fruit_df.collect()]
+# Get fruit names + search terms
+fruit_df = session.table("smoothies.public.fruit_options") \
+                  .select(col("FRUIT_NAME"), col("SEARCH_ON"))
+
+fruit_rows = fruit_df.collect()
+
+fruit_list = [row["FRUIT_NAME"] for row in fruit_rows]
+search_lookup = {row["FRUIT_NAME"]: row["SEARCH_ON"] for row in fruit_rows}
 
 # Multiselect
 ingredients_list = st.multiselect(
@@ -38,8 +42,10 @@ if ingredients_list:
 
         st.subheader(fruit_chosen + ' Nutrition Information')
 
+        search_term = search_lookup[fruit_chosen]
+
         smoothiefroot_response = requests.get(
-            f"https://my.smoothiefroot.com/api/fruit/{fruit_chosen.lower()}"
+            f"https://my.smoothiefroot.com/api/fruit/{search_term}"
         )
 
         st.dataframe(
@@ -47,10 +53,10 @@ if ingredients_list:
             use_container_width=True
         )
 
-    my_insert_stmt = f"""
-        INSERT INTO smoothies.public.orders (ingredients, name_on_order)
-        VALUES ('{ingredients_string}', '{name_on_order}')
-    """
-if time_to_insert:
-    session.sql(my_insert_stmt).collect()
-    st.success(f'Your Smoothie is ordered, {name_on_order}!', icon="✅")
+    if time_to_insert:
+        my_insert_stmt = f"""
+            INSERT INTO smoothies.public.orders (ingredients, name_on_order)
+            VALUES ('{ingredients_string}', '{name_on_order}')
+        """
+        session.sql(my_insert_stmt).collect()
+        st.success(f'Your Smoothie is ordered, {name_on_order}!', icon="✅")
